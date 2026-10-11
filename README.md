@@ -19,9 +19,9 @@ The network has four major parts:
 3. **Central Router:** Connects both buildings to the ISP, hosts the DHCP pools, and performs NAT/PAT.
 4. **ISP and External PC:** Simulate a user outside the campus accessing the published website.
 
-![Complete Packet Tracer topology](screenshots/01-topology.png)
+![Complete Packet Tracer topology](screenshots/topology.png)
 
-*Figure 1: Complete logical network topology (add screenshot).*
+*Figure 1: Complete logical network topology .*
 
 ### Why this architecture?
 
@@ -42,7 +42,7 @@ Different subnet sizes reflect different capacity requirements. Student Lab uses
 
 **Verification:** `show vlan brief`, `show interfaces trunk`, and host IP configuration.
 
-![VLAN verification](screenshots/02-vlans.png)
+![VLAN verification](screenshots/vlan.png)
 
 ## 3. VLANs, Trunking, and Inter-VLAN Routing
 
@@ -68,7 +68,7 @@ Devices in different VLANs cannot communicate directly at Layer 2. Router subint
 
 **Verification:** `show interfaces trunk`, `show ip interface brief`, and cross-VLAN ping tests.
 
-![Trunk verification](screenshots/03-trunks.png)
+![Trunk verification](screenshots/inter-vlan.png)
 
 ## 4. Dynamic Routing with OSPF
 
@@ -96,8 +96,8 @@ show ip route
 
 Check that expected neighbors are in the **FULL** state and that remote networks are learned through OSPF.
 
-![OSPF neighbors](screenshots/04-ospf-neighbors.png)
-![Routing table](screenshots/05-routing-table.png)
+![OSPF neighbors,Routing table](screenshots/OSPF.png)
+
 
 ## 5. Centralized DHCP and DHCP Relay
 
@@ -128,7 +128,7 @@ DHCP automates IP assignment for lab computers. Because DHCP broadcasts do not n
 
 **Verification:** `show ip dhcp binding` on Central, plus `ipconfig` on DHCP clients.
 
-![DHCP bindings](screenshots/06-dhcp.png)
+![DHCP bindings](screenshots/dhcp.png)
 
 ## 6. Server Room and Network Services
 
@@ -147,8 +147,8 @@ Centralizing services in a dedicated VLAN makes them easier to locate, manage, a
 
 For external web access, the DNS A record for `www.mostafa.com` points to `203.0.113.3`, the simulated public address of the web server.
 
-![DNS record](screenshots/07-dns.png)
-![Web server](screenshots/08-web.png)
+![DNS record](screenshots/dns.png)
+![Web server](screenshots/web.png)
 
 ## 7. Internet Connectivity, NAT, and PAT
 
@@ -201,8 +201,8 @@ show ip nat statistics
 
 > **PAT evidence tip:** Generate outbound traffic from two internal clients. In `show ip nat translations`, look for dynamic entries sharing `10.0.1.9` with distinct translated ports/identifiers. Static NAT entries alone do **not** demonstrate PAT.
 
-![NAT and PAT translations](screenshots/09-nat-pat.png)
-![External website access](screenshots/10-external-web.png)
+![NAT and PAT translations](screenshots/nat-pat.png)
+![External website access](screenshots/external-web.png)
 
 **Addressing note:** `203.0.113.0/24` is documentation address space; it is used here only inside the simulation. The Central Router's outside interface address `10.0.1.9` is also private, so this is a simulated ISP environment rather than a real public internet deployment.
 
@@ -241,7 +241,7 @@ show ip interface GigabitEthernet0/0.10
 
 Test a permitted HTTP or DNS request and a denied FTP request from an Administration PC. ACL match counters can provide additional evidence.
 
-![Administration ACL](screenshots/11-admin-acl.png)
+![Administration ACL](screenshots/acl.png)
 
 ## 9. Testing and Verification Checklist
 
@@ -309,17 +309,16 @@ campus-network-packet-tracer/
 ├── packet-tracer/
 │   └── campus-network.pkt
 └── screenshots/
-    ├── 01-topology.png
-    ├── 02-vlans.png
-    ├── 03-trunks.png
-    ├── 04-ospf-neighbors.png
-    ├── 05-routing-table.png
-    ├── 06-dhcp.png
-    ├── 07-dns.png
-    ├── 08-web.png
-    ├── 09-nat-pat.png
-    ├── 10-external-web.png
-    └── 11-admin-acl.png
+    ├── topology.png
+    ├── vlan.png
+    ├── inter-vlan.png
+    ├── ospf.png
+    ├── dhcp.png
+    ├── dns.png
+    ├── web.png
+    ├── nat-pat.png
+    ├── external-web.png
+    └──acl.png
 ```
 
 ## 13. Conclusion
