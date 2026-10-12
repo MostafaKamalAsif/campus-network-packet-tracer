@@ -31,9 +31,9 @@ Separating users into VLANs reduces unnecessary broadcast traffic and creates lo
 
 | VLAN | Department / Network | Subnet | Default Gateway | Addressing |
 |---|---|---|---|---|
-| 10 | Administration | `10.0.0.192/27` | `10.0.0.193` | Static |
-| 20 | Accounts | `10.0.0.224/28` | `10.0.0.225` | Static |
-| 30 | Faculty | `10.0.0.128/27` | `10.0.0.129` | Static |
+| 10 | Administration | `10.0.0.192/27` | `10.0.0.193` | DHCP |
+| 20 | Accounts Unit | `10.0.0.224/28` | `10.0.0.225` | DHCP |
+| 30 | Faculty | `10.0.0.128/27` | `10.0.0.129` | DHCP |
 | 40 | Student Lab | `10.0.0.0/25` | `10.0.0.1` | DHCP |
 | 50 | Server Room | `10.0.0.240/28` | `10.0.0.241` | Static |
 | 60 | Innovation Lab | `10.0.0.160/27` | `10.0.0.161` | DHCP |
