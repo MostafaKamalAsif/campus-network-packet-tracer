@@ -8,7 +8,37 @@ This project simulates a campus network connecting the **Main Academic Building*
 **Routing protocol:** OSPF  
 **Key technologies:** VLANs, 802.1Q trunks, router-on-a-stick, DHCP relay, DNS, HTTP, FTP, email services, NAT, PAT, and extended ACLs
 
-> **Repository note:** The addressing and configurations below describe the implemented lab. Add screenshots and the `.pkt` file before publishing. Example command output is not presented as measured evidence.
+## At a glance
+
+| | |
+|---|---|
+| **Devices** | 4 routers (Main, Central, Innovation, ISP), Catalyst 2960 switches, 6 VLANs, 4 servers, external test PC |
+| **Services** | DHCP + relay, DNS, HTTP, FTP, email |
+| **Routing** | OSPF between campus routers; default route to ISP |
+| **Security** | Extended ACL on the Administration VLAN; NAT/PAT at the edge |
+| **Project file** | [`packet-tracer/campus-network-packet-tracer.pkt`](packet-tracer/campus-network-packet-tracer.pkt) (open with Cisco Packet Tracer) |
+| **Full addressing** | [`docs/addressing-plan.md`](docs/addressing-plan.md) |
+
+## Contents
+
+1. [Network architecture](#1-network-architecture)
+2. [IP addressing and VLAN plan](#2-ip-addressing-and-vlan-plan)
+3. [VLANs, trunking and inter-VLAN routing](#3-vlans-trunking-and-inter-vlan-routing)
+4. [Dynamic routing with OSPF](#4-dynamic-routing-with-ospf)
+5. [Centralized DHCP and relay](#5-centralized-dhcp-and-dhcp-relay)
+6. [Server room and services](#6-server-room-and-network-services)
+7. [NAT and PAT](#7-internet-connectivity-nat-and-pat)
+8. [Administration ACL](#8-administration-vlan-security-with-an-extended-acl)
+9. [Testing checklist](#9-testing-and-verification-checklist)
+10. [Troubleshooting and lessons learned](#10-troubleshooting-and-lessons-learned)
+11. [Potential improvements](#11-potential-improvements)
+12. [Repository structure](#12-repository-structure)
+
+## How to use this repo
+
+1. Install Cisco Packet Tracer and open the `.pkt` file in `packet-tracer/`.
+2. Open a router CLI and run the commands listed under each **Verification** heading.
+3. Compare your output with the screenshots in `screenshots/`.
 
 ## 1. Network Architecture
 
@@ -21,7 +51,20 @@ The network has four major parts:
 
 ![Complete Packet Tracer topology](screenshots/topology.png)
 
-*Figure 1: Complete logical network topology .*
+*Figure 1: Complete logical network topology.*
+
+Simplified view of the router links (each link is a /30):
+
+```mermaid
+flowchart TB
+    EXT["External PC<br/>200.0.0.2/30"] --- ISP["ISP Router"]
+    ISP -- "10.0.1.8/30" --- CEN["Central Router<br/>DHCP, NAT/PAT"]
+    CEN -- "10.0.1.0/30" --- MAIN["Main Academic Building<br/>router-on-a-stick"]
+    CEN -- "10.0.1.4/30" --- INN["Innovation Lab router"]
+    MAIN -- "10.0.1.12/30" --- INN
+    MAIN --- SW1["Switches: VLANs 10, 20, 30, 40, 50"]
+    INN --- SW2["Switches: VLAN 60"]
+```
 
 ### Why this architecture?
 
@@ -96,19 +139,23 @@ show ip route
 
 Check that expected neighbors are in the **FULL** state and that remote networks are learned through OSPF.
 
-![OSPF neighbors,Routing table](screenshots/OSPF.png)
-
+![OSPF neighbors and routing table](screenshots/OSPF.png)
 
 ## 5. Centralized DHCP and DHCP Relay
 
 ### What I configured
 
-DHCP pools reside on the **Central Router** for:
+DHCP pools reside on the **Central Router** for every DHCP-addressed VLAN (the Server Room is static):
 
-- **Student Lab:** `10.0.0.0/25`, gateway `10.0.0.1`
-- **Innovation Lab:** `10.0.0.160/27`, gateway `10.0.0.161`
+| Pool | VLAN | Network | Gateway |
+|---|---|---|---|
+| Student_Lab | 40 | `10.0.0.0/25` | `10.0.0.1` |
+| Administration | 10 | `10.0.0.192/27` | `10.0.0.193` |
+| Accounts | 20 | `10.0.0.224/28` | `10.0.0.225` |
+| Faculty | 30 | `10.0.0.128/27` | `10.0.0.129` |
+| Innovation Lab | 60 | `10.0.0.160/27` | `10.0.0.161` |
 
-The Main router's Student Lab interface relays DHCP requests toward Central:
+The Main router's Student Lab interface relays DHCP requests toward Central (the Administration, Accounts and Faculty gateways need the same relay pattern; confirm with `show running-config`):
 
 ```cisco
 interface GigabitEthernet0/0.40
@@ -126,7 +173,9 @@ interface GigabitEthernet0/1.60
 
 DHCP automates IP assignment for lab computers. Because DHCP broadcasts do not normally cross routers, `ip helper-address` forwards client requests to the centralized DHCP server. Static addressing is used for servers and selected administrative devices so their addresses remain predictable.
 
-**Verification:** `show ip dhcp binding` on Central, plus `ipconfig` on DHCP clients.
+**Verification:** `show ip dhcp binding` and `show ip dhcp pool` on Central, plus `ipconfig` on DHCP clients.
+
+> **Evidence note:** The screenshot below shows the Administration pool with 0 leased addresses. If it was taken before the VLAN 10 DHCP fix, retake it after the Administration PCs have renewed their leases, so the evidence shows all pools in use.
 
 ![DHCP bindings](screenshots/dhcp.png)
 
@@ -232,6 +281,12 @@ This limits **traffic originating from Administration VLAN 10** as it enters the
 
 **Important scope:** This inbound ACL restricts Administration users' outbound routed traffic; it does **not** by itself block users in other VLANs from initiating connections *toward* Administration. Protecting Administration against incoming access from other departments would require appropriately placed additional ACL rules.
 
+**DHCP and the ACL:** Administration clients use DHCP, and a DHCPDISCOVER leaves the client with source `0.0.0.0`, which does not match `10.0.0.192 0.0.0.31`. An inbound ACL ending in `deny ip ... any` plus the implicit deny can therefore drop it before the relay sees it. If Administration PCs fall back to `169.254.x.x` with this ACL applied, add this line at the top of `Admin-ACL` and re-test:
+
+```cisco
+permit udp any eq bootpc any eq bootps
+```
+
 **Verification:**
 
 ```cisco
@@ -270,6 +325,12 @@ Test a permitted HTTP or DNS request and a denied FTP request from an Administra
 
 **Solution:** Configure `ip helper-address` on the relevant VLAN gateway and confirm the DHCP pool, routing, and interface status.
 
+### Administration VLAN gets no DHCP address
+
+**Issue:** Administration PCs show `169.254.x.x` even though the pool and relay exist, and `show ip dhcp binding` has no `10.0.0.19x` / `10.0.0.20x` entries.
+
+**Check:** the `ip helper-address` on `G0/0.10`, that the Administration pool exists on Central, and whether `Admin-ACL` is dropping the DHCP broadcast (see section 8).
+
 ### Public website accessible by IP but not by domain
 
 **Issue:** External access using `http://203.0.113.3` works, but the domain name initially does not.
@@ -299,6 +360,7 @@ Test a permitted HTTP or DNS request and a denied FTP request from an Administra
 - Limit management access to SSH from trusted administrator devices.
 - Apply switch port security where supported and document verification.
 - Add redundant infrastructure and monitoring for higher availability.
+- Export each device's `show running-config` into a `configs/` folder so the project can be reviewed without Packet Tracer.
 - Use a dedicated public-address plan in a real deployment instead of documentation/private simulation ranges.
 
 ## 12. Repository Structure
@@ -306,21 +368,27 @@ Test a permitted HTTP or DNS request and a denied FTP request from an Administra
 ```text
 campus-network-packet-tracer/
 ├── README.md
+├── LICENSE
+├── .gitignore
+├── docs/
+│   └── addressing-plan.md
 ├── packet-tracer/
-│   └── campus-network.pkt
+│   └── campus-network-packet-tracer.pkt
 └── screenshots/
     ├── topology.png
     ├── vlan.png
     ├── inter-vlan.png
-    ├── ospf.png
+    ├── OSPF.png
     ├── dhcp.png
     ├── dns.png
     ├── web.png
     ├── nat-pat.png
     ├── external-web.png
-    └──acl.png
+    └── acl.png
 ```
 
 ## 13. Conclusion
 
 This project demonstrates an end-to-end campus network using Cisco Packet Tracer. It combines segmentation, dynamic routing, centralized addressing and services, simulated ISP access, address translation, and traffic filtering. The most important outcome is understanding not only how to configure each feature, but also **why it is needed and how to verify that it works**.
+
+Released under the [MIT License](LICENSE).

@@ -1,0 +1,10 @@
+# Packet Tracer backups and autosaves
+*.pka~
+*.pkt~
+*.bak
+*.tmp
+
+# OS/editor artifacts
+.DS_Store
+Thumbs.db
+.vscode/
